@@ -8,6 +8,13 @@ if (!isLoggedIn()) {
 $pageTitle = 'My Account';
 $bidModel = new Bid();
 $user = getCurrentUser();
+if (!$user) {
+    // User's session is invalid or user was deleted.
+    // Log them out and send to login page.
+    $userModel = new User();
+    $userModel->logout();
+    redirect('/login.php?error=session');
+}
 
 // Get user's bids
 $userBids = $bidModel->getByUser($user['id']);

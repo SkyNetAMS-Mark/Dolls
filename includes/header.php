@@ -79,7 +79,7 @@ $currencies = $db->fetchAll("SELECT * FROM currency_rates WHERE is_active = 1 OR
                         <?php if (isLoggedIn()): ?>
                             <div class="user-menu">
                                 <a href="<?php echo SITE_URL; ?>/account.php">
-                                    👤 <?php echo escape($_SESSION['user_name']); ?>
+                                    👤 <?php echo escape($_SESSION['user_name'] ?? 'Account'); ?>
                                 </a>
                             </div>
                         <?php endif; ?>

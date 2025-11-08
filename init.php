@@ -10,7 +10,7 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/functions.php';
 
 // Load classes
-require_once __DIR__ . '/classes/Database.php';
+require_once __DIR__ . '/classes/DatabaseModel.php';
 
 require_once __DIR__ . '/classes/Product.php';
 
