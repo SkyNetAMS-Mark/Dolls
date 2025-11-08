@@ -10,13 +10,11 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/functions.php';
 
 // Load classes
+// This is the corrected list that matches your actual files
 require_once __DIR__ . '/classes/DatabaseModel.php';
-
-require_once __DIR__ . '/classes/Product.php';
-
-require_once __DIR__ . '/classes/Bid.php';
-
-require_once __DIR__ . '/classes/User.php';
+require_once __DIR__ . '/classes/ProductModel.php';
+require_once __DIR__ . '/classes/BidModel.php';
+require_once __DIR__ . '/classes/UserModel.php';
 
 
 // Initialize database
