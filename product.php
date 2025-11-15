@@ -39,12 +39,18 @@ $auctionActive = isAuctionActive($product);
 $errors = [];
 $success = false;
 
+$currentUser = isLoggedIn() ? getCurrentUser() : null;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_bid'])) {
-    $bidAmount = floatval($_POST['bid_amount']);
+    $bidAmountInDisplayCurrency = floatval($_POST['bid_amount']);
+    $displayCurrency = clean($_POST['display_currency']);
     $email = clean($_POST['email']);
     $firstName = clean($_POST['first_name']);
     $lastName = clean($_POST['last_name']);
     $phone = clean($_POST['phone']);
+    
+    // Convert bid amount back to product's currency
+    $bidAmount = convertCurrency($bidAmountInDisplayCurrency, $displayCurrency, $product['currency']);
     
     // Validation
     if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -53,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_bid'])) {
     if (empty($firstName) || empty($lastName)) {
         $errors[] = "Please provide your full name";
     }
-    if ($bidAmount <= 0) {
+    if ($bidAmountInDisplayCurrency <= 0) {
         $errors[] = "Bid amount must be greater than 0";
     }
     
@@ -61,7 +67,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_bid'])) {
     $minimumBid = $currentHighest + MIN_BID_INCREMENT;
     
     if ($bidAmount < $minimumBid) {
-        $errors[] = "Minimum bid is " . formatPrice($minimumBid, $product['currency']);
+        $convertedMin = convertCurrency($minimumBid, $product['currency'], $displayCurrency);
+        $errors[] = "Minimum bid is " . formatPrice($convertedMin, $displayCurrency);
     }
     
     if (!$auctionActive) {
@@ -80,8 +87,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_bid'])) {
             'status' => BID_CONFIRMATION_REQUIRED ? 'pending' : 'confirmed'
         ];
         
-        if (isLoggedIn()) {
-            $bidData['user_id'] = $_SESSION['user_id'];
+        if (isLoggedIn() && $currentUser) {
+            $bidData['user_id'] = $currentUser['id'];
         }
         
         $bidId = $bidModel->create($bidData);
@@ -173,16 +180,22 @@ require_once 'includes/header.php';
                     <h3 style="margin-bottom: 20px; color: var(--secondary-color);">Place Your Bid</h3>
                     
                     <form method="POST">
+                        <input type="hidden" name="display_currency" value="<?php echo $currency; ?>">
+                        
                         <div class="form-group">
                             <label>Your Bid Amount (<?php echo $currency; ?>)</label>
+                            <?php
+                            $minimumBidInProductCurrency = $displayPrice + MIN_BID_INCREMENT;
+                            $minimumBidConverted = convertCurrency($minimumBidInProductCurrency, $product['currency'], $currency);
+                            ?>
                             <input type="number" 
                                    name="bid_amount" 
                                    step="0.01" 
-                                   min="<?php echo $displayPrice + MIN_BID_INCREMENT; ?>"
-                                   value="<?php echo $displayPrice + MIN_BID_INCREMENT; ?>"
+                                   min="<?php echo number_format($minimumBidConverted, 2, '.', ''); ?>"
+                                   value="<?php echo number_format($minimumBidConverted, 2, '.', ''); ?>"
                                    required>
                             <small style="color: var(--text-light); display: block; margin-top: 5px;">
-                                Minimum bid: <?php echo formatPrice($displayPrice + MIN_BID_INCREMENT, $currency); ?>
+                                Minimum bid: <?php echo formatPrice($minimumBidConverted, $currency); ?>
                             </small>
                         </div>
                         
@@ -191,7 +204,7 @@ require_once 'includes/header.php';
                                 <label>First Name</label>
                                 <input type="text" 
                                        name="first_name" 
-                                       value="<?php echo isLoggedIn() ? escape(getCurrentUser()['first_name']) : ''; ?>"
+                                       value="<?php echo $currentUser ? escape($currentUser['first_name']) : ''; ?>"
                                        required>
                             </div>
                             
@@ -199,7 +212,7 @@ require_once 'includes/header.php';
                                 <label>Last Name</label>
                                 <input type="text" 
                                        name="last_name" 
-                                       value="<?php echo isLoggedIn() ? escape(getCurrentUser()['last_name']) : ''; ?>"
+                                       value="<?php echo $currentUser ? escape($currentUser['last_name']) : ''; ?>"
                                        required>
                             </div>
                         </div>
@@ -208,7 +221,7 @@ require_once 'includes/header.php';
                             <label>Email Address</label>
                             <input type="email" 
                                    name="email" 
-                                   value="<?php echo isLoggedIn() ? escape(getCurrentUser()['email']) : ''; ?>"
+                                   value="<?php echo $currentUser ? escape($currentUser['email']) : ''; ?>"
                                    required>
                         </div>
                         
@@ -216,7 +229,7 @@ require_once 'includes/header.php';
                             <label>Phone Number (Optional)</label>
                             <input type="tel" 
                                    name="phone" 
-                                   value="<?php echo isLoggedIn() ? escape(getCurrentUser()['phone']) : ''; ?>">
+                                   value="<?php echo $currentUser ? escape($currentUser['phone']) : ''; ?>">
                         </div>
                         
                         <button type="submit" name="place_bid" class="btn btn-primary btn-block">
@@ -374,7 +387,6 @@ require_once 'includes/header.php';
     <?php endif; ?>
 </div>
 
-<!-- Image zoom modal -->
 <div class="modal" id="imageModal">
     <span class="modal-close" onclick="closeModal()">&times;</span>
     <img class="modal-content" id="modalImage">

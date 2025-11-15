@@ -67,8 +67,10 @@ class User {
         session_destroy();
     }
     
+    // FIXED: Use direct COUNT query
     public function emailExists($email) {
-        return $this->getByEmail($email) !== null;
+        $result = $this->db->fetchOne("SELECT COUNT(*) as count FROM users WHERE email = ?", [$email]);
+        return $result && $result['count'] > 0;
     }
 }
 

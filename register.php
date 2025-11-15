@@ -42,7 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'password' => $password,
             'first_name' => $firstName,
             'last_name' => $lastName,
-            'phone' => $phone
+            'phone' => $phone,
+            'is_active' => 1  // CRITICAL: Set user as active immediately
         ];
         
         $userId = $userModel->create($userData);
@@ -57,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-require_once 'header.php';
+require_once 'includes/header.php';
 ?>
 
 <div class="container" style="margin: 60px auto; max-width: 500px;">
@@ -116,4 +117,4 @@ require_once 'header.php';
     </div>
 </div>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once 'includes/footer.php'; ?>
