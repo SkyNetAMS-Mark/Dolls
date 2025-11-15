@@ -37,10 +37,10 @@ ini_set('display_errors', 1);
 // Email configuration (for sending bid confirmations)
 define('SMTP_HOST', 'smtp.strato.com');
 define('SMTP_PORT', 587);
-define('SMTP_USERNAME', 'your_email@yourdomain.com');
-define('SMTP_PASSWORD', 'your_email_password');
-define('SMTP_FROM_EMAIL', 'noreply@yourdomain.com');
-define('SMTP_FROM_NAME', SITE_NAME);
+define('SMTP_USERNAME', 'website@kanninga.eu');
+define('SMTP_PASSWORD', '!Icanfly79');
+define('SMTP_FROM_EMAIL', 'noreply@kanninga.eu');
+define('SMTP_FROM_NAME', 'Dolls');
 
 // PayPal configuration
 define('PAYPAL_EMAIL', 'your_paypal_email@domain.com');

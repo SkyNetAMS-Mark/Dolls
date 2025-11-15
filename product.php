@@ -1,4 +1,9 @@
 <?php
+// --- ADDED FOR DEBUGGING ---
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+// ---------------------------
+
 require_once 'init.php';
 
 if (!isset($_GET['slug']) || empty($_GET['slug'])) {
@@ -41,6 +46,11 @@ $success = false;
 
 $currentUser = isLoggedIn() ? getCurrentUser() : null;
 
+// Handle success message from redirect
+if (isset($_GET['success']) && $_GET['success'] === 'bid_placed') {
+    $success = "Bid placed successfully!";
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_bid'])) {
     $bidAmountInDisplayCurrency = floatval($_POST['bid_amount']);
     $displayCurrency = clean($_POST['display_currency']);
@@ -76,6 +86,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_bid'])) {
     }
     
     if (empty($errors)) {
+        
+        $isRegisteredUser = (isLoggedIn() && $currentUser);
+        // Guests must confirm if confirmation is required. Registered users do not.
+        $requireConfirmation = BID_CONFIRMATION_REQUIRED && !$isRegisteredUser;
+        
         $bidData = [
             'product_id' => $product['id'],
             'email' => $email,
@@ -84,25 +99,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_bid'])) {
             'first_name' => $firstName,
             'last_name' => $lastName,
             'phone' => $phone,
-            'status' => BID_CONFIRMATION_REQUIRED ? 'pending' : 'confirmed'
+            'status' => $requireConfirmation ? 'pending' : 'confirmed' // Auto-confirm for registered users
         ];
         
-        if (isLoggedIn() && $currentUser) {
+        if ($isRegisteredUser) {
             $bidData['user_id'] = $currentUser['id'];
         }
         
         $bidId = $bidModel->create($bidData);
         
         if ($bidId) {
-            if (BID_CONFIRMATION_REQUIRED) {
+            if ($requireConfirmation) {
+                // --- GUEST USER: Send confirmation email ---
                 $bid = $bidModel->getById($bidId);
                 $bid['product_name'] = $product['name'];
                 sendBidConfirmationEmail($bid);
                 $success = "Bid placed successfully! Please check your email to confirm your bid.";
             } else {
-                $productModel->updateCurrentBid($product['id'], $bidAmount);
-                $success = "Bid placed successfully!";
-                redirect('/product.php?slug=' . $product['slug']);
+                // --- REGISTERED USER: Auto-confirmed ---
+                // We must manually check and update the product's current bid,
+                // just like the confirm() method would.
+                $newHighestBid = $bidModel->getHighestBid($product['id']);
+                
+                if ($newHighestBid && $newHighestBid['id'] == $bidId) {
+                    $productModel->updateCurrentBid($product['id'], $bidAmount);
+                }
+                
+                // Redirect to the same page with a success message
+                redirect('/product.php?slug=' . $product['slug'] . '&success=bid_placed');
             }
         } else {
             $errors[] = "Failed to place bid. Please try again.";
@@ -185,7 +209,7 @@ require_once 'includes/header.php';
                         <div class="form-group">
                             <label>Your Bid Amount (<?php echo $currency; ?>)</label>
                             <?php
-                            $minimumBidInProductCurrency = $displayPrice + MIN_BID_INCREMENT;
+                            $minimumBidInProductCurrency = ($product['current_bid'] ?: $product['base_price']) + MIN_BID_INCREMENT;
                             $minimumBidConverted = convertCurrency($minimumBidInProductCurrency, $product['currency'], $currency);
                             ?>
                             <input type="number" 
@@ -205,7 +229,7 @@ require_once 'includes/header.php';
                                 <input type="text" 
                                        name="first_name" 
                                        value="<?php echo $currentUser ? escape($currentUser['first_name']) : ''; ?>"
-                                       required>
+                                       required <?php echo $currentUser ? 'readonly' : ''; ?>>
                             </div>
                             
                             <div class="form-group">
@@ -213,7 +237,7 @@ require_once 'includes/header.php';
                                 <input type="text" 
                                        name="last_name" 
                                        value="<?php echo $currentUser ? escape($currentUser['last_name']) : ''; ?>"
-                                       required>
+                                       required <?php echo $currentUser ? 'readonly' : ''; ?>>
                             </div>
                         </div>
                         
@@ -222,14 +246,15 @@ require_once 'includes/header.php';
                             <input type="email" 
                                    name="email" 
                                    value="<?php echo $currentUser ? escape($currentUser['email']) : ''; ?>"
-                                   required>
+                                   required <?php echo $currentUser ? 'readonly' : ''; ?>>
                         </div>
                         
                         <div class="form-group">
                             <label>Phone Number (Optional)</label>
                             <input type="tel" 
                                    name="phone" 
-                                   value="<?php echo $currentUser ? escape($currentUser['phone']) : ''; ?>">
+                                   value="<?php echo $currentUser ? escape($currentUser['phone']) : ''; ?>"
+                                   <?php echo $currentUser ? 'readonly' : ''; ?>>
                         </div>
                         
                         <button type="submit" name="place_bid" class="btn btn-primary btn-block">
